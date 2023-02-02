@@ -67,7 +67,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         UsersRepository(engine).add_user(user_db)
 
     await update.message.reply_html(
-        rf"Hola {user.mention_html()}!",
+        rf"Buenas Sr/a: {user.mention_html()} 🧐🍷",
         reply_markup=ForceReply(selective=True),
     )
 
@@ -84,7 +84,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def wait_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        'En qué tarea trabajaras?'
+        'Seria muy amable de indicarme el nombre de la tarea en la cual estará trabajando el dia de hoy? Por favor.'
     )
 
     return TASK
@@ -93,20 +93,30 @@ async def wait_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
 
-    task = update.message.text
+    last_stop_time = TrackedsRepository(engine).get_last_stop_time(user.id)
 
-    tracked = TrackedSchema(
-        start_time=datetime.datetime.now(),
-        stop_time=None,
-        time_worked=None,
-        task=task,
-        date=datetime.datetime.now().date(),
-        user_id=user.id,
-    )
+    if last_stop_time is None:
+        last_task = TrackedsRepository(engine).get_last_task(user.id)
+        await update.message.reply_text(
+            f'Disculpe la molestia, pero, encuentro que usted todavía no ha terminado la tarea anterior. \n📝:{last_task}'
+        )
+        await update.message.reply_text('Si desea terminarla puede enviar el comando /stop muchas gracias.')
+    else:
+        new_task = update.message.text
 
-    TrackedsRepository(engine).add_track_time(tracked)
+        tracked = TrackedSchema(
+            start_time=datetime.datetime.now(),
+            stop_time=None,
+            time_worked=None,
+            task=new_task,
+            date=datetime.datetime.now().date(),
+            user_id=user.id,
+        )
 
-    await update.message.reply_text('Okidoki')
+        TrackedsRepository(engine).add_track_time(tracked)
+
+        await update.message.reply_text('Muchas gracias.')
+        await update.message.reply_text('Tarea agregada 🧐🍷')
 
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -140,11 +150,11 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         # Update stop time
         TrackedsRepository(engine).update_track_time(tracked)
-        
 
-        await update.message.reply_text(f'Trabajaste: {seconds_to_hours} h en {task}')
+        await update.message.reply_text(f'Usted ha trabajado en \n📝: {task} \n\n⏰: {seconds_to_hours} h')
+        await update.message.reply_text(f'Lo aguardo en la siguiente tarea. 🧐🍷')
     else:
-        await update.message.reply_text(f'No encuentro ninguna tarea iniciada ._.')
+        await update.message.reply_text(f'Disculpe usted, pero, no encuentro ninguna tarea iniciada con antelación.')
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
