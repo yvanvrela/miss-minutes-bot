@@ -14,6 +14,7 @@ class TrackedsRepository():
             start_time=tracked.start_time,
             stop_time=tracked.stop_time,
             time_worked=tracked.time_worked,
+            task=tracked.task,
             date=tracked.date,
             user_id=tracked.user_id
         )
@@ -62,6 +63,17 @@ class TrackedsRepository():
         last_start_time = conn.execute(statement).fetchone()[1]
 
         return last_start_time
+
+    def get_last_task(self, user_id: int) -> datetime.datetime:
+        last_tacking_id = self.get_last_tracking_id(user_id)
+
+        conn = self.engine.connect()
+        statement = trackeds.select().where(
+            trackeds.c.id == last_tacking_id)
+
+        last_task = conn.execute(statement).fetchone()[4]
+
+        return last_task
 
     def get_last_stop_time(self, user_id: int) -> datetime.datetime:
         last_tacking_id = self.get_last_tracking_id(user_id)

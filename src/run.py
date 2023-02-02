@@ -14,6 +14,7 @@ import datetime
 from datetime import timedelta
 
 from telegram import __version__ as TG_VER
+from telegram.ext import ConversationHandler, filters
 from database.repositories.trackeds_repository import TrackedsRepository
 from database.repositories.users_repository import UsersRepository
 from database.schemas.trackeds_schema import TrackedSchema
@@ -36,6 +37,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandl
 import os
 
 TOKEN = os.getenv('TOKEN')
+# Const task conversation
+TASK = 1
 
 # Enable logging
 logging.basicConfig(
@@ -74,22 +77,35 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     await update.message.reply_text("Help!")
 
 
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Echo the user message."""
-    await update.message.reply_text(update.message.text)
+# async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+#     """Echo the user message."""
+#     await update.message.reply_text(update.message.text)
+
+
+async def wait_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    await update.message.reply_text(
+        'En qué tarea trabajaras?'
+    )
+
+    return TASK
 
 
 async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
+
+    task = update.message.text
+
     tracked = TrackedSchema(
         start_time=datetime.datetime.now(),
         stop_time=None,
         time_worked=None,
+        task=task,
         date=datetime.datetime.now().date(),
         user_id=user.id,
     )
 
-    print(TrackedsRepository(engine).add_track_time(tracked))
+    TrackedsRepository(engine).add_track_time(tracked)
+
     await update.message.reply_text('Okidoki')
 
 
@@ -99,6 +115,10 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     last_stop_time = TrackedsRepository(engine).get_last_stop_time(user.id)
 
     if last_stop_time is None:
+        # Get task name
+        task = TrackedsRepository(engine).get_last_task(user.id)
+
+        # Get start time
         start_time = TrackedsRepository(engine).get_last_start_time(user.id)
         stop_time = datetime.datetime.now()
 
@@ -112,16 +132,26 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         tracked = TrackedSchema(
             stop_time=stop_time,
             time_worked=hours_to_seconds,
+            task=task,
             user_id=user.id,
         )
 
         seconds_to_hours = str(datetime.timedelta(seconds=hours_to_seconds))
 
+        # Update stop time
         TrackedsRepository(engine).update_track_time(tracked)
+        
 
-        await update.message.reply_text(f'Trabajaste: {seconds_to_hours} h')
+        await update.message.reply_text(f'Trabajaste: {seconds_to_hours} h en {task}')
     else:
         await update.message.reply_text(f'No encuentro ninguna tarea iniciada ._.')
+
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancels and ends the conversation."""
+    await stop(update, context)
+
+    return ConversationHandler.END
 
 
 def main() -> None:
@@ -129,15 +159,28 @@ def main() -> None:
     # Create the Application and pass it your bot's token.
     application = Application.builder().token(TOKEN).build()
 
+    # Task conversation
+    task_handler = ConversationHandler(
+        entry_points=[CommandHandler("work", wait_task_name)],
+        states={
+            TASK: [
+                MessageHandler(filters.Regex("^\w.+"), work)
+            ],
+        },
+        fallbacks=[CommandHandler("stop", cancel)],
+    )
+
+    application.add_handler(task_handler)
+
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("work", work))
+    # application.add_handler(CommandHandler("work", work))
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("help", help_command))
 
     # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND, echo))
+    # application.add_handler(MessageHandler(
+    #     filters.TEXT & ~filters.COMMAND, echo))
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()
