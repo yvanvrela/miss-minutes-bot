@@ -49,16 +49,19 @@ logger = logging.getLogger(__name__)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
-    user_db = UserSchema(
-        id_telegram=user.id,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        username=user.username,
-        full_name=user.full_name,
-        is_bot=False,
-    )
+    user_reference = UsersRepository(engine).get_user_by_telegram_id(user.id)
 
-    UsersRepository(engine).add_user(user_db)
+    if user_reference is None:
+        user_db = UserSchema(
+            id_telegram=user.id,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            username=user.username,
+            full_name=user.full_name,
+            is_bot=False,
+        )
+
+        UsersRepository(engine).add_user(user_db)
 
     await update.message.reply_html(
         rf"Hola {user.mention_html()}!",
