@@ -1,7 +1,8 @@
 import datetime
 from database.config.db import engine, trackeds
 from database.schemas.trackeds_schema import TrackedSchema
-from sqlalchemy import engine, desc
+from sqlalchemy import engine, desc, and_
+from typing import List
 from sqlalchemy.sql.expression import update
 
 
@@ -85,3 +86,18 @@ class TrackedsRepository():
         last_stop_time = conn.execute(statement).fetchone()[2]
 
         return last_stop_time
+
+    def get_tasks(self, user_id: int) -> list:
+        conn = self.engine.connect()
+        statement = trackeds.select().where(trackeds.c.user_id == user_id)
+        trackeds_db = conn.execute(statement).fetchall()
+
+        return trackeds_db
+
+    def get_tasks_by_date(self, user_id: int, date: datetime.datetime) -> List[TrackedSchema]:
+        conn = self.engine.connect()
+        statement = trackeds.select().where(
+            and_(trackeds.c.user_id == user_id, trackeds.c.date == date))
+        trackeds_db = conn.execute(statement).fetchall()
+
+        return trackeds_db
