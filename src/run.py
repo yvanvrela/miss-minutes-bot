@@ -171,18 +171,21 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def get_today_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
 
-    tasks = TrackedsRepository(engine).get_tasks_by_date(
+    tasks_today = TrackedsRepository(engine).get_tasks_by_date(
         user.id, datetime.datetime.now().date())
 
-    tasks_msg = ''
-    total_hours_worked = 0
-    for task in tasks:
-        tasks_msg += f'{task.task}\n{str(datetime.timedelta(seconds=task.time_worked))} h\n\n'
-        total_hours_worked += task.time_worked
+    if len(tasks_today) > 0:
+        tasks_msg = ''
+        total_hours_worked = 0
+        for task in tasks_today:
+            tasks_msg += f'{task.task}\n{str(datetime.timedelta(seconds=task.time_worked))} h\n\n'
+            total_hours_worked += task.time_worked
 
-    await update.message.reply_text('Tus tareas de hoy:')
-    await update.message.reply_text(tasks_msg)
-    await update.message.reply_text(f'En total trabajaste: {str(datetime.timedelta(seconds=total_hours_worked))} h')
+        await update.message.reply_text('Hoy trabajaste en:')
+        await update.message.reply_text(tasks_msg)
+        await update.message.reply_text(f'En total trabajaste: {str(datetime.timedelta(seconds=total_hours_worked))} h')
+    else:
+        await update.message.reply_text('No encuentro ninguna tarea con fecha de hoy')
 
 
 async def get_yesterday_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -190,17 +193,17 @@ async def get_yesterday_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     yesterday_date = datetime.datetime.now().date() - timedelta(days=1)
 
-    tasks = TrackedsRepository(engine).get_tasks_by_date(
+    yesterday_tasks = TrackedsRepository(engine).get_tasks_by_date(
         user.id, yesterday_date)
 
-    if len(tasks) > 0:
+    if len(yesterday_tasks) > 0:
         tasks_msg = ''
         total_hours_worked = 0
-        for task in tasks:
+        for task in yesterday_tasks:
             tasks_msg += f'{task.task}\n{str(datetime.timedelta(seconds=task.time_worked))} h\n\n'
             total_hours_worked += task.time_worked
 
-        await update.message.reply_text('Tabajaste hoy en:')
+        await update.message.reply_text('Ayer trabajaste en:')
         await update.message.reply_text(tasks_msg)
         await update.message.reply_text(f'En total trabajaste: {str(datetime.timedelta(seconds=total_hours_worked))} h')
     else:
@@ -228,9 +231,9 @@ def main() -> None:
     # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
     # application.add_handler(CommandHandler("work", work))
-    application.add_handler(CommandHandler("today_tasks", get_today_tasks))
+    application.add_handler(CommandHandler("todaytasks", get_today_tasks))
     application.add_handler(CommandHandler(
-        "yesterday_tasks", get_yesterday_tasks))
+        "yesterdaytasks", get_yesterday_tasks))
     application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CommandHandler("help", help_command))
 
