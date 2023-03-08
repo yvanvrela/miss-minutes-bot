@@ -12,7 +12,8 @@ trackeds = Table(
     Column('start_time', DateTime, default=None),
     Column('stop_time', DateTime, default=None),
     Column('time_worked', Float, default=None),
-    Column('task', String(255)),
+    Column('task_id', String(255), default=None ),
+    Column('task_name', String(255)),
     Column('date', Date, default=datetime.datetime.utcnow),
     Column('user_id', ForeignKey('users.id')),
 )
