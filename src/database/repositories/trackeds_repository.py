@@ -74,6 +74,17 @@ class TrackedsRepository():
         last_task_name = conn.execute(statement).fetchone()[5]
 
         return last_task_name
+    
+    def get_last_clickup_task_id(self, user_id: int) -> str:
+        last_tacking_id = self.get_last_tracking_id(user_id)
+
+        conn = self.engine.connect()
+        statement = trackeds.select().where(
+            trackeds.c.id == last_tacking_id)
+
+        clickup_task_id = conn.execute(statement).fetchone()[4]
+
+        return clickup_task_id
 
     def get_last_stop_time(self, user_id: int) -> datetime.datetime:
         last_tacking_id = self.get_last_tracking_id(user_id)
