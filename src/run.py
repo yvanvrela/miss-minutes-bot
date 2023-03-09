@@ -20,6 +20,8 @@ from database.repositories.users_repository import UsersRepository
 from database.schemas.trackeds_schema import TrackedSchema
 from database.schemas.users_schema import UserSchema
 from database.config.db import engine
+from util import util
+from clickup.api import time_entries
 
 try:
     from telegram import __version_info__
@@ -102,7 +104,7 @@ async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
         await update.message.reply_text('Si desea terminarla puede enviar el comando /stop muchas gracias.')
     else:
-        
+
         new_task = update.message.text
         task_id = None
         task_name = new_task
@@ -111,7 +113,6 @@ async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             new_task = new_task.split(',')
             task_id = new_task[0]
             task_name = new_task[1]
-
 
         tracked = TrackedSchema(
             start_time=datetime.datetime.now(),
@@ -144,10 +145,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         time_worked = stop_time - start_time
 
-        list_hour = str(time_worked).split(':')
-
-        hours_to_seconds = (int(
-            list_hour[0])*3600) + (int(list_hour[1])*60) + int(float(list_hour[2]))
+        hours_to_seconds = util.hour_to_seconds(time_worked)
 
         tracked = TrackedSchema(
             stop_time=stop_time,
@@ -156,12 +154,22 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             user_id=user.id,
         )
 
-        seconds_to_hours = str(datetime.timedelta(seconds=hours_to_seconds))
+        seconds_to_hour = str(datetime.timedelta(seconds=hours_to_seconds))
 
         # Update stop time
         TrackedsRepository(engine).update_track_time(tracked)
 
-        await update.message.reply_text(f'Usted ha trabajado en \n📝: {task_name} \n\n⏰: {seconds_to_hours} h')
+        # Add time entry to ClickUp
+        task_id = TrackedsRepository(engine).get_last_clickup_task_id(user.id)
+        time_entry = time_entries.add_time_entry(
+            task_id=task_id,
+            description='QuickTimerBot',
+            start_time=util.date_to_epoch(start_time),
+            duration=util.hour_to_microseconds(time_worked)
+        )
+
+        await update.message.reply_text(f'Usted ha trabajado en \n📝: {task_name} \n\n⏰: {seconds_to_hour} h')
+        await update.message.reply_text(f'También ya agregué las horas al ClickUp.')
         await update.message.reply_text(f'Lo aguardo en la siguiente tarea. 🧐🍷')
     else:
         await update.message.reply_text(f'Disculpe usted, pero, no encuentro ninguna tarea iniciada con antelación.')
