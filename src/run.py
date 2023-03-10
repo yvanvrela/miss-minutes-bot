@@ -20,8 +20,10 @@ from database.repositories.users_repository import UsersRepository
 from database.schemas.trackeds_schema import TrackedSchema
 from database.schemas.users_schema import UserSchema
 from database.config.db import engine
+import re
 from util import util
 from clickup.api import time_entries
+from clickup.api import tasks
 
 try:
     from telegram import __version_info__
@@ -69,7 +71,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         UsersRepository(engine).add_user(user_db)
 
     await update.message.reply_html(
-        rf"Buenas Sr/a: {user.mention_html()} 🧐🍷",
+        rf"Buenas: {user.mention_html()} 🧐🍷",
         reply_markup=ForceReply(selective=True),
     )
 
@@ -86,7 +88,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 # ----------------- Traking task ----------------------
 async def wait_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        'Seria muy amable de indicarme el nombre de la tarea en la cual estará trabajando el dia de hoy? Por favor.'
+        '¿Nombre de la tarea?'
     )
 
     return TASK
@@ -109,7 +111,31 @@ async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         task_id = None
         task_name = new_task
 
-        if ',' in new_task:
+        pattern = "\/t/(.+)"
+        url_task_id_reference = re.findall(pattern, task_name)
+
+        if len(url_task_id_reference) > 0:
+            task_id = url_task_id_reference[0]
+
+            # First check task reference in DB
+            task_reference_db = TrackedsRepository(
+                engine).get_task_by_clickup_task_id(user_id=user.id, task_id=task_id)
+
+            if task_reference_db is None:
+                # Get task information from API
+                task_reference = tasks.get_task(task_id=task_id)
+
+                if "err" not in task_reference:
+                    task_name = task_reference["name"]
+
+                    await update.message.reply_text(f'Ok, la tarea es:\n{task_name}')
+                else:
+                    await update.message.reply_text('No pude encontrar la tarea.')
+            else:
+                task_name = task_reference_db.task_name
+                await update.message.reply_text(f'Ok, la tarea es:\n{task_name}')
+
+        elif ',' in new_task:
             new_task = new_task.split(',')
             task_id = new_task[0]
             task_name = new_task[1]
@@ -126,7 +152,6 @@ async def work(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
         TrackedsRepository(engine).add_track_time(tracked)
 
-        await update.message.reply_text('Muchas gracias.')
         await update.message.reply_text('Tarea agregada 🧐🍷')
 
 
@@ -160,16 +185,23 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         TrackedsRepository(engine).update_track_time(tracked)
 
         # Add time entry to ClickUp
-        task_id = TrackedsRepository(engine).get_last_clickup_task_id(user.id)
-        time_entry = time_entries.add_time_entry(
-            task_id=task_id,
-            description='QuickTimerBot',
-            start_time=util.date_to_epoch(start_time),
-            duration=util.hour_to_microseconds(time_worked)
-        )
+        task_id = TrackedsRepository(
+            engine).get_last_clickup_task_id(user.id)
+
+        if user.id == 789892786 and task_id is not None:
+
+            time_entry = time_entries.add_time_entry(
+                task_id=task_id,
+                description='QuickTimerBot',
+                start_time=util.date_to_epoch(start_time),
+                duration=util.hour_to_microseconds(time_worked)
+            )
 
         await update.message.reply_text(f'Usted ha trabajado en \n📝: {task_name} \n\n⏰: {seconds_to_hour} h')
-        await update.message.reply_text(f'También ya agregué las horas al ClickUp.')
+
+        if user.id == 789892786 and task_id is not None:
+            await update.message.reply_text(f'También ya agregué las horas al ClickUp.')
+
         await update.message.reply_text(f'Lo aguardo en la siguiente tarea. 🧐🍷')
     else:
         await update.message.reply_text(f'Disculpe usted, pero, no encuentro ninguna tarea iniciada con antelación.')
