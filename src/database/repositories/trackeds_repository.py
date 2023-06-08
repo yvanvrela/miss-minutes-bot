@@ -17,6 +17,7 @@ class TrackedsRepository():
             time_worked=tracked.time_worked,
             task_id=tracked.task_id,
             task_name=tracked.task_name,
+            task_description=tracked.task_description,
             date=tracked.date,
             user_id=tracked.user_id
         )
@@ -34,6 +35,7 @@ class TrackedsRepository():
 
         update_st = update(trackeds).where(
             trackeds.c.id == last_tacking_id).values(
+            task_description=tracked.task_description,
             stop_time=tracked.stop_time,
             time_worked=tracked.time_worked,
         )
@@ -74,7 +76,7 @@ class TrackedsRepository():
         last_task_name = conn.execute(statement).fetchone()[5]
 
         return last_task_name
-    
+
     def get_last_clickup_task_id(self, user_id: int) -> str:
         last_tacking_id = self.get_last_tracking_id(user_id)
 
@@ -111,3 +113,19 @@ class TrackedsRepository():
         trackeds_db = conn.execute(statement).fetchall()
 
         return trackeds_db
+
+    def get_task_by_clickup_task_id(self, user_id: int, task_id: str) -> TrackedSchema:
+        conn = self.engine.connect()
+        statement = trackeds.select().where(
+            and_(trackeds.c.user_id == user_id, trackeds.c.task_id == task_id))
+        tracked_db = conn.execute(statement).fetchone()
+
+        return tracked_db
+
+    def delete_task_by_tracked_id(self, tracked_id: int):
+        conn = self.engine.connect()
+        statement = trackeds.delete().where(trackeds.c.id == tracked_id)
+        conn.execute(statement)
+        conn.commit()
+
+        return True

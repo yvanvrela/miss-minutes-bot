@@ -1,4 +1,9 @@
 import datetime
+import os
+import requests
+
+# 5 min in seconds
+SECONDS_PER_SEGMENT = 300
 
 
 def str_to_date(date_string: str):
@@ -24,6 +29,14 @@ def date_to_epoch(date: datetime.datetime) -> int:
     return int(datetime.datetime.timestamp(date) * 1000)
 
 
-def hour_worked(start_date: datetime.datetime) -> datetime.datetime:
-    stop_time = datetime.datetime.now()
-    return (stop_time - start_date)
+def hour_worked(start_date: datetime.datetime) -> datetime.timedelta:
+    stop_time_now = datetime.datetime.now()
+    time_worked = stop_time_now - start_date
+    return time_worked
+
+
+def seconds_rounded(hours_second: int) -> int:
+    hour_rounded = round(hours_second / SECONDS_PER_SEGMENT)
+    if hour_rounded < 1:
+        return SECONDS_PER_SEGMENT
+    return hour_rounded * SECONDS_PER_SEGMENT

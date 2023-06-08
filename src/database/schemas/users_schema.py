@@ -8,3 +8,5 @@ class UserSchema(BaseModel):
     full_name: str = Field()
     username: str | None = Field()
     is_bot: bool = Field()
+    clickup_user_id: str | None = Field()
+    clickup_access_token: str | None = Field()

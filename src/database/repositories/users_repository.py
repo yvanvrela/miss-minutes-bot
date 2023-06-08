@@ -14,16 +14,18 @@ class UsersRepository():
             last_name=user.last_name,
             username=user.username,
             full_name=user.full_name,
-            is_bot=user.is_bot
+            is_bot=user.is_bot,
+            clickup_code=user.clickup_user_id,
+            clickup_access_token=user.clickup_access_token
         )
         conn = self.engine.connect()
         conn.execute(user_db)
         conn.commit()
         conn.close()
-        
+
         return user_db
 
-    def get_user_by_telegram_id(self, id_telegram: int) -> tuple:
+    def get_user_by_telegram_id(self, id_telegram: int) -> UserSchema:
         conn = self.engine.connect()
         statement = users.select().where(
             users.c.id_telegram == id_telegram)
