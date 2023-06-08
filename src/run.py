@@ -118,7 +118,8 @@ async def wait_task_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
     else:
         await update.message.reply_text(messages_util.random_taskname_prompts())
-
+        await update.message.reply_text('Para hacer el trackeo en ClikUp podes enviarme el link de la tarea o su id.')
+        
         return TASK
 
 
